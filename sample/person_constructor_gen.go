@@ -3,15 +3,20 @@ package sample
 
 import "time"
 
-func NewPerson(name string, age int, createdAt time.Time) *Person {
+func NewPerson(name string, age int, createdAt time.Time) (*Person, error) {
+
+	t0 := NewPersonName(name)
+
+	t1 := NewPersonAge(age)
+
 	return &Person{
 
-		Name: NewPersonName(name),
+		Name: t0,
 
-		Age: NewPersonAge(age),
+		Age: t1,
 
 		CreatedAt: createdAt,
-	}
+	}, nil
 }
 
 func (d PersonName) RawValue() string {

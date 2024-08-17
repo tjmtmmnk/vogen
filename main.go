@@ -51,6 +51,7 @@ func main() {
 	typeMap := make(map[string]string)
 	constructors := []TemplateData{}
 	definedTypes := []DefinedType{}
+	constructorReturnsError := make(map[string]bool)
 
 	for _, f := range node.Decls {
 		if genDecl, ok := f.(*ast.GenDecl); ok {
@@ -85,8 +86,21 @@ func main() {
 		}
 	}
 
+	// Identify if constructors return an error
+	for _, f := range node.Decls {
+		if funcDecl, ok := f.(*ast.FuncDecl); ok {
+			if funcDecl.Recv == nil && strings.HasPrefix(funcDecl.Name.Name, "New") {
+				if funcDecl.Type.Results != nil && len(funcDecl.Type.Results.List) > 1 {
+					if ident, ok := funcDecl.Type.Results.List[1].Type.(*ast.Ident); ok && ident.Name == "error" {
+						constructorReturnsError[funcDecl.Name.Name] = true
+					}
+				}
+			}
+		}
+	}
+
 	for _, constructor := range constructors {
-		generateConstructor(filename, constructor, typeMap)
+		generateConstructor(filename, constructor, typeMap, constructorReturnsError)
 	}
 }
 
@@ -114,7 +128,7 @@ func toCamelCase(s string) string {
 	return string(runes)
 }
 
-func generateConstructor(filename string, data TemplateData, typeMap map[string]string) {
+func generateConstructor(filename string, data TemplateData, typeMap map[string]string, constructorReturnsError map[string]bool) {
 	tmpl, err := template.New("constructor").Funcs(template.FuncMap{
 		"camelCase": toCamelCase,
 		"isDefinedType": func(typ string) bool {
@@ -127,19 +141,30 @@ func generateConstructor(filename string, data TemplateData, typeMap map[string]
 			}
 			return typ
 		},
+		"constructorReturnsError": func(typ string) bool {
+			return constructorReturnsError["New"+typ]
+		},
 	}).Parse(`// Auto-generated constructor for {{.StructName}}
 package {{.PackageName}}
-func New{{.StructName}}({{range $index, $field := .Fields}}{{if $index}}, {{end}}{{$field.Name | camelCase}} {{if isDefinedType $field.Type}}{{getBaseType $field.Type}}{{else}}{{$field.Type}}{{end}}{{end}}) *{{.StructName}} {
-    return &{{.StructName}}{
-        {{range .Fields}}
-        {{.Name}}: {{if isDefinedType .Type}}New{{.Type}}({{.Name | camelCase}}){{else}}{{.Name | camelCase}}{{end}},
-        {{end}}
-    }
+func New{{.StructName}}({{range $index, $field := .Fields}}{{if $index}}, {{end}}{{$field.Name | camelCase}} {{if isDefinedType $field.Type}}{{getBaseType $field.Type}}{{else}}{{$field.Type}}{{end}}{{end}}) (*{{.StructName}}, error) {
+	{{range $index, $field := .Fields}}{{if isDefinedType .Type}}{{if constructorReturnsError .Type}}
+	t{{$index}}, err := New{{.Type}}({{.Name | camelCase}})
+	if err != nil {
+		return nil, err
+	}
+	{{else}}
+	t{{$index}} := New{{.Type}}({{.Name | camelCase}})
+	{{end}}{{end}}{{end}}
+	return &{{.StructName}}{
+		{{range $index, $field := .Fields}}
+		{{.Name}}: {{if isDefinedType .Type}}t{{$index}}{{else}}{{.Name | camelCase}}{{end}},
+		{{end}}
+	}, nil
 }
 
 {{range .DefinedTypes}}
 func (d {{.Name}}) RawValue() {{.BaseType}} {
-    return {{.BaseType}}(d)
+	return {{.BaseType}}(d)
 }
 {{end}}
 `)
