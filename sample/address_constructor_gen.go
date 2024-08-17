@@ -28,6 +28,25 @@ func NewAddress(number int, city string, country string) (*Address, error) {
 	}, nil
 }
 
+type rawAddress struct {
+	Number int
+
+	City string
+
+	Country string
+}
+
+func (d Address) RawValue() rawAddress {
+	return rawAddress{
+
+		Number: d.Number.RawValue(),
+
+		City: d.City.RawValue(),
+
+		Country: d.Country.RawValue(),
+	}
+}
+
 func (d AddressNumber) RawValue() int {
 	return int(d)
 }
