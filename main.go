@@ -143,9 +143,12 @@ func generateConstructor(filename string, data TemplateData, typeMap map[string]
 		"constructorReturnsError": func(typ string) bool {
 			return constructorReturnsError["New"+typ]
 		},
+		"isPointerType": func(typ string) bool {
+			return strings.HasPrefix(typ, "*")
+		},
 	}).Parse(`// Auto-generated constructor for {{.StructName}}
 package {{.PackageName}}
-func New{{.StructName}}({{range $index, $field := .Fields}}{{if $index}}, {{end}}{{$field.Name | camelCase}} {{if isDefinedType $field.Type}}{{getBaseType $field.Type}}{{else}}{{$field.Type}}{{end}}{{end}}) (*{{.StructName}}, error) {
+func New{{.StructName}}({{range $index, $field := .Fields}}{{if $index}}, {{end}}{{$field.Name | camelCase}} {{if isDefinedType $field.Type}}{{if isPointerType $field.Type}}*{{end}}{{getBaseType $field.Type}}{{else}}{{$field.Type}}{{end}}{{end}}) (*{{.StructName}}, error) {
  {{range $index, $field := .Fields}}{{if isDefinedType .Type}}{{if constructorReturnsError .Type}}
  t{{$index}}, err := New{{.Type}}({{.Name | camelCase}})
  if err != nil {
@@ -163,14 +166,14 @@ func New{{.StructName}}({{range $index, $field := .Fields}}{{if $index}}, {{end}
 
 type raw{{.StructName}} struct {
  {{range .Fields}}
- {{.Name}} {{if isDefinedType .Type}}{{getBaseType .Type}}{{else}}{{.Type}}{{end}}
+ {{.Name}} {{if isDefinedType .Type}}{{if isPointerType .Type}}*{{end}}{{getBaseType .Type}}{{else}}{{.Type}}{{end}}
  {{end}}
 }
 
 func (d {{.StructName}}) RawValue() raw{{.StructName}} {
  return raw{{.StructName}}{
   {{range .Fields}}
-  {{.Name}}: {{if isDefinedType .Type}}d.{{.Name}}.RawValue(){{else}}d.{{.Name}}{{end}},
+  {{.Name}}: {{if isDefinedType .Type}}{{if isPointerType .Type}}d.{{.Name}}.RawValue(){{else}}d.{{.Name}}.RawValue(){{end}}{{else}}d.{{.Name}}{{end}},
   {{end}}
  }
 }
