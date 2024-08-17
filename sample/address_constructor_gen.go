@@ -3,28 +3,28 @@ package sample
 
 func NewAddress(number int, city string, country string) (*Address, error) {
 
-	t0, err := NewAddressNumber(number)
+	tempVarByVogen0, err := NewAddressNumber(number)
 	if err != nil {
 		return nil, err
 	}
 
-	t1, err := NewAddressCity(city)
+	tempVarByVogen1, err := NewAddressCity(city)
 	if err != nil {
 		return nil, err
 	}
 
-	t2, err := NewAddressCountry(country)
+	tempVarByVogen2, err := NewAddressCountry(country)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Address{
 
-		Number: t0,
+		Number: tempVarByVogen0,
 
-		City: t1,
+		City: tempVarByVogen1,
 
-		Country: t2,
+		Country: tempVarByVogen2,
 	}, nil
 }
 

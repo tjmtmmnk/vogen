@@ -5,15 +5,15 @@ import "time"
 
 func NewPerson(name string, age int, catchPhrase PersonCatchphrase, createdAt time.Time) (*Person, error) {
 
-	t0 := NewPersonName(name)
+	tempVarByVogen0 := NewPersonName(name)
 
-	t1 := NewPersonAge(age)
+	tempVarByVogen1 := NewPersonAge(age)
 
 	return &Person{
 
-		Name: t0,
+		Name: tempVarByVogen0,
 
-		Age: t1,
+		Age: tempVarByVogen1,
 
 		CatchPhrase: catchPhrase,
 

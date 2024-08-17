@@ -150,16 +150,16 @@ func generateConstructor(filename string, data TemplateData, typeMap map[string]
 package {{.PackageName}}
 func New{{.StructName}}({{range $index, $field := .Fields}}{{if $index}}, {{end}}{{$field.Name | camelCase}} {{if isDefinedType $field.Type}}{{if isPointerType $field.Type}}*{{end}}{{getBaseType $field.Type}}{{else}}{{$field.Type}}{{end}}{{end}}) (*{{.StructName}}, error) {
  {{range $index, $field := .Fields}}{{if isDefinedType .Type}}{{if constructorReturnsError .Type}}
- t{{$index}}, err := New{{.Type}}({{.Name | camelCase}})
+ tempVarByVogen{{$index}}, err := New{{.Type}}({{.Name | camelCase}})
  if err != nil {
   return nil, err
  }
  {{else}}
- t{{$index}} := New{{.Type}}({{.Name | camelCase}})
+ tempVarByVogen{{$index}} := New{{.Type}}({{.Name | camelCase}})
  {{end}}{{end}}{{end}}
  return &{{.StructName}}{
   {{range $index, $field := .Fields}}
-  {{.Name}}: {{if isDefinedType .Type}}t{{$index}}{{else}}{{.Name | camelCase}}{{end}},
+  {{.Name}}: {{if isDefinedType .Type}}tempVarByVogen{{$index}}{{else}}{{.Name | camelCase}}{{end}},
   {{end}}
  }, nil
 }
