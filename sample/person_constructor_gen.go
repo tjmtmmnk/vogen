@@ -6,10 +6,18 @@ import "time"
 func NewPerson(name string, age int, createdAt time.Time) *Person {
 	return &Person{
 
-		Name: NewName(name),
+		Name: NewPersonName(name),
 
-		Age: NewAge(age),
+		Age: NewPersonAge(age),
 
 		CreatedAt: createdAt,
 	}
+}
+
+func (d PersonName) RawValue() string {
+	return string(d)
+}
+
+func (d PersonAge) RawValue() int {
+	return int(d)
 }

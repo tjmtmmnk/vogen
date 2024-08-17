@@ -4,6 +4,10 @@ package sample
 func NewAddress(number int) *Address {
 	return &Address{
 
-		Number: NewNumber(number),
+		Number: NewAddressNumber(number),
 	}
+}
+
+func (d AddressNumber) RawValue() int {
+	return int(d)
 }

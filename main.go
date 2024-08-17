@@ -86,7 +86,7 @@ func main() {
 	}
 
 	for _, constructor := range constructors {
-		generateConstructor(constructor, typeMap)
+		generateConstructor(filename, constructor, typeMap)
 	}
 }
 
@@ -114,7 +114,7 @@ func toCamelCase(s string) string {
 	return string(runes)
 }
 
-func generateConstructor(data TemplateData, typeMap map[string]string) {
+func generateConstructor(filename string, data TemplateData, typeMap map[string]string) {
 	tmpl, err := template.New("constructor").Funcs(template.FuncMap{
 		"camelCase": toCamelCase,
 		"isDefinedType": func(typ string) bool {
@@ -147,7 +147,8 @@ func (d {{.Name}}) RawValue() {{.BaseType}} {
 		log.Fatalf("failed to parse template: %v", err)
 	}
 
-	outputFilename := strings.ToLower(data.StructName) + "_constructor_gen.go"
+	baseFileName := strings.TrimSuffix(filename, ".go")
+	outputFilename := baseFileName + "_constructor_gen.go"
 	f, err := os.Create(outputFilename)
 	if err != nil {
 		log.Fatalf("failed to create file: %v", err)
