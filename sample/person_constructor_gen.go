@@ -1,5 +1,5 @@
 // Auto-generated constructor for Person
-package main
+package sample
 
 import "time"
 

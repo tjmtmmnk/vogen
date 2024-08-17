@@ -25,12 +25,10 @@ type TemplateData struct {
 }
 
 func main() {
-	// Define flags for source file and struct names
 	sourceFile := flag.String("source", "", "Source file name")
 	structNames := flag.String("structs", "", "Comma-separated list of struct names to generate constructors for")
 	flag.Parse()
 
-	// Check if both flags are provided
 	if *sourceFile == "" || *structNames == "" {
 		log.Fatalf("Usage: go run gen.go -source <FileName> -structs <StructName1,StructName2,...>")
 	}
@@ -44,10 +42,11 @@ func main() {
 		log.Fatalf("failed to parse file: %v", err)
 	}
 
-	typeMap := make(map[string]string) // 型情報を保持するマップ
-	constructors := []TemplateData{}   // 生成するコンストラクタの情報を保持する変数
+	// 型情報を保持するマップ
+	typeMap := make(map[string]string)
+	// 生成するコンストラクタの情報を保持する変数
+	constructors := []TemplateData{}
 
-	// ASTを解析して構造体やdefined typeを収集
 	for _, f := range node.Decls {
 		if genDecl, ok := f.(*ast.GenDecl); ok {
 			for _, spec := range genDecl.Specs {
@@ -160,7 +159,6 @@ func New{{.StructName}}({{range $index, $field := .Fields}}{{if $index}}, {{end}
 	log.Printf("Constructor for %s generated successfully in %s\n", data.StructName, outputFilename)
 }
 
-// goimportsを実行
 func runGoImports(filename string) {
 	cmd := exec.Command("go", "run", "golang.org/x/tools/cmd/goimports", "-w", filename)
 	err := cmd.Run()
@@ -169,7 +167,6 @@ func runGoImports(filename string) {
 	}
 }
 
-// go fmtを実行
 func runGoFmt(filename string) {
 	cmd := exec.Command("go", "run", "cmd/gofmt", "-w", filename)
 	err := cmd.Run()

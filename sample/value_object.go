@@ -1,8 +1,8 @@
-package main
+package sample
 
 import "time"
 
-//go:generate go run gen.go -source $GOFILE -structs Person
+//go:generate go run github.com/tjmtmmnk/vogen -source $GOFILE -structs Person,Address,NoFields
 type (
 	Name   string
 	Age    int
@@ -18,6 +18,10 @@ type Person struct {
 type Address struct {
 	Number Number
 }
+
+type NoFields struct{}
+
+type NotGenerated struct{}
 
 func NewName(name string) Name {
 	return Name(name)
