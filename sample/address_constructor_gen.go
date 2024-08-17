@@ -54,7 +54,7 @@ func (d Address) RawValue() rawAddress {
 
 		Number: d.Number.RawValue(),
 
-		Number2: d.Number2.RawValue(),
+		Number2: d.Number2.RawValue().RawValue(),
 
 		City: d.City.RawValue(),
 
