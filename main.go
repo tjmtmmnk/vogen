@@ -18,10 +18,16 @@ type Field struct {
 	Type string
 }
 
+type DefinedType struct {
+	Name     string
+	BaseType string
+}
+
 type TemplateData struct {
-	PackageName string
-	StructName  string
-	Fields      []Field
+	PackageName  string
+	StructName   string
+	Fields       []Field
+	DefinedTypes []DefinedType
 }
 
 func main() {
@@ -42,20 +48,18 @@ func main() {
 		log.Fatalf("failed to parse file: %v", err)
 	}
 
-	// 型情報を保持するマップ
 	typeMap := make(map[string]string)
-	// 生成するコンストラクタの情報を保持する変数
 	constructors := []TemplateData{}
+	definedTypes := []DefinedType{}
 
 	for _, f := range node.Decls {
 		if genDecl, ok := f.(*ast.GenDecl); ok {
 			for _, spec := range genDecl.Specs {
 				if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-					// defined typeのチェック
 					if ident, ok := typeSpec.Type.(*ast.Ident); ok {
 						typeMap[typeSpec.Name.Name] = ident.Name
+						definedTypes = append(definedTypes, DefinedType{Name: typeSpec.Name.Name, BaseType: ident.Name})
 					}
-					// 構造体の解析
 					if structType, ok := typeSpec.Type.(*ast.StructType); ok {
 						for _, targetStruct := range targetStructs {
 							if typeSpec.Name.Name == targetStruct {
@@ -67,11 +71,11 @@ func main() {
 									}
 								}
 
-								// 構造体情報を変数に設定
 								constructors = append(constructors, TemplateData{
-									PackageName: node.Name.Name,
-									StructName:  typeSpec.Name.Name,
-									Fields:      fields,
+									PackageName:  node.Name.Name,
+									StructName:   typeSpec.Name.Name,
+									Fields:       fields,
+									DefinedTypes: definedTypes,
 								})
 							}
 						}
@@ -81,13 +85,11 @@ func main() {
 		}
 	}
 
-	// ターゲット構造体のコンストラクタを生成
 	for _, constructor := range constructors {
 		generateConstructor(constructor, typeMap)
 	}
 }
 
-// 型情報の文字列化
 func exprToString(expr ast.Expr) string {
 	switch v := expr.(type) {
 	case *ast.Ident:
@@ -103,7 +105,6 @@ func exprToString(expr ast.Expr) string {
 	}
 }
 
-// camelCaseに変換
 func toCamelCase(s string) string {
 	if s == "" {
 		return s
@@ -113,7 +114,6 @@ func toCamelCase(s string) string {
 	return string(runes)
 }
 
-// コンストラクタのコードを生成
 func generateConstructor(data TemplateData, typeMap map[string]string) {
 	tmpl, err := template.New("constructor").Funcs(template.FuncMap{
 		"camelCase": toCamelCase,
@@ -136,6 +136,12 @@ func New{{.StructName}}({{range $index, $field := .Fields}}{{if $index}}, {{end}
         {{end}}
     }
 }
+
+{{range .DefinedTypes}}
+func (d {{.Name}}) RawValue() {{.BaseType}} {
+    return {{.BaseType}}(d)
+}
+{{end}}
 `)
 	if err != nil {
 		log.Fatalf("failed to parse template: %v", err)
