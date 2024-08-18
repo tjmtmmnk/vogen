@@ -3,7 +3,7 @@ package sample
 
 import "time"
 
-func NewPerson(name string, age int, catchPhrase *string, createdAt time.Time) (*Person, error) {
+func NewPerson(name string, age int, catchPhrase *string, createdAt time.Time) *Person {
 
 	tempVarByVogen0 := NewPersonName(name)
 
@@ -20,7 +20,8 @@ func NewPerson(name string, age int, catchPhrase *string, createdAt time.Time) (
 		CatchPhrase: tempVarByVogen2,
 
 		CreatedAt: createdAt,
-	}, nil
+	}
+
 }
 
 type rawPerson struct {
