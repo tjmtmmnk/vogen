@@ -150,7 +150,7 @@ func generateConstructor(filename string, data TemplateData, typeMap map[string]
 			/*
 				type A int
 				type B A
-				 のように定義されている場合、BのRootBaseTypeはAになる
+				 のように定義されている場合、BのRootBaseTypeはintになる
 			*/
 			for {
 				isPtr := strings.HasPrefix(typ, "*")
