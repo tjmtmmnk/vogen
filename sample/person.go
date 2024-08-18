@@ -25,3 +25,7 @@ func NewPersonName(name string) PersonName {
 func NewPersonAge(age int) PersonAge {
 	return PersonAge(age)
 }
+
+func NewPersonCatchphrase(catchPhrase *string) PersonCatchphrase {
+	return catchPhrase
+}

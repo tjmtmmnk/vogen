@@ -3,11 +3,13 @@ package sample
 
 import "time"
 
-func NewPerson(name string, age int, catchPhrase PersonCatchphrase, createdAt time.Time) (*Person, error) {
+func NewPerson(name string, age int, catchPhrase *string, createdAt time.Time) (*Person, error) {
 
 	tempVarByVogen0 := NewPersonName(name)
 
 	tempVarByVogen1 := NewPersonAge(age)
+
+	tempVarByVogen2 := NewPersonCatchphrase(catchPhrase)
 
 	return &Person{
 
@@ -15,7 +17,7 @@ func NewPerson(name string, age int, catchPhrase PersonCatchphrase, createdAt ti
 
 		Age: tempVarByVogen1,
 
-		CatchPhrase: catchPhrase,
+		CatchPhrase: tempVarByVogen2,
 
 		CreatedAt: createdAt,
 	}, nil
@@ -26,19 +28,25 @@ type rawPerson struct {
 
 	Age int
 
-	CatchPhrase PersonCatchphrase
+	CatchPhrase *string
 
 	CreatedAt time.Time
 }
 
 func (d Person) RawValue() rawPerson {
+
+	var tempVarByVogenCatchPhrase *string
+	if d.CatchPhrase != nil {
+		tempVarByVogenCatchPhrase = (*string)((*string)(d.CatchPhrase))
+	}
+
 	return rawPerson{
 
 		Name: d.Name.RawValue(),
 
 		Age: d.Age.RawValue(),
 
-		CatchPhrase: d.CatchPhrase,
+		CatchPhrase: tempVarByVogenCatchPhrase,
 
 		CreatedAt: d.CreatedAt,
 	}

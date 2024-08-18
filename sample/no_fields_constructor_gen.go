@@ -10,5 +10,6 @@ type rawNoFields struct {
 }
 
 func (d NoFields) RawValue() rawNoFields {
+
 	return rawNoFields{}
 }
