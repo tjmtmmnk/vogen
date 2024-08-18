@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -33,7 +32,7 @@ type TemplateData struct {
 
 func main() {
 	sourceFile := flag.String("source", "", "Source file name")
-	structNames := flag.String("structs", "", "Comma-separated list of struct names to generate constructors for")
+	structNames := flag.String("structs", "", "Comma-separated list of struct names to generate")
 	flag.Parse()
 
 	if *sourceFile == "" || *structNames == "" {
@@ -261,7 +260,7 @@ func (d {{.StructName}}) RawValue() raw{{.StructName}} {
 	}
 
 	baseFileName := strings.TrimSuffix(filename, ".go")
-	outputFilename := baseFileName + "_constructor_gen.go"
+	outputFilename := baseFileName + "_vo_gen.go"
 	f, err := os.Create(outputFilename)
 	if err != nil {
 		log.Fatalf("failed to create file: %v", err)
