@@ -3,41 +3,41 @@ package sample
 
 func NewAddress(number int, number2 int, number2p *int, city string, country string) (*Address, error) {
 
-	tempVarByVogen0, err := NewAddressNumber(number)
+	tempVarByVogenNumber, err := NewAddressNumber(number)
 	if err != nil {
 		return nil, err
 	}
 
-	tempVarByVogen1, err := NewAddressNumber2(number2)
+	tempVarByVogenNumber2, err := NewAddressNumber2(number2)
 	if err != nil {
 		return nil, err
 	}
 
-	tempVarByVogen2, err := NewAddressNumber2p(number2p)
+	tempVarByVogenNumber2p, err := NewAddressNumber2p(number2p)
 	if err != nil {
 		return nil, err
 	}
 
-	tempVarByVogen3, err := NewAddressCity(city)
+	tempVarByVogenCity, err := NewAddressCity(city)
 	if err != nil {
 		return nil, err
 	}
 
-	tempVarByVogen4, err := NewAddressCountry(country)
+	tempVarByVogenCountry, err := NewAddressCountry(country)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Address{
 
-		Number: tempVarByVogen0,
+		Number: tempVarByVogenNumber,
 
-		Number2: tempVarByVogen1,
+		Number2: tempVarByVogenNumber2,
 
-		Number2p: tempVarByVogen2,
+		Number2p: tempVarByVogenNumber2p,
 
-		City: tempVarByVogen3,
+		City: tempVarByVogenCity,
 
-		Country: tempVarByVogen4,
+		Country: tempVarByVogenCountry,
 	}, nil
 }

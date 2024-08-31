@@ -5,24 +5,24 @@ import "time"
 
 func ParsePerson(name string, age int, catchPhrase *string, createdAt time.Time, temp int) *Person {
 
-	tempVarByVogen0 := ParsePersonName(name)
+	tempVarByVogenName := ParsePersonName(name)
 
-	tempVarByVogen1 := ParsePersonAge(age)
+	tempVarByVogenAge := ParsePersonAge(age)
 
-	tempVarByVogen2 := ParsePersonCatchphrase(catchPhrase)
+	tempVarByVogenCatchPhrase := ParsePersonCatchphrase(catchPhrase)
 
-	tempVarByVogen4 := ParseTemp(temp)
+	tempVarByVogenTemp := ParseTemp(temp)
 
 	return &Person{
 
-		Name: tempVarByVogen0,
+		Name: tempVarByVogenName,
 
-		Age: tempVarByVogen1,
+		Age: tempVarByVogenAge,
 
-		CatchPhrase: tempVarByVogen2,
+		CatchPhrase: tempVarByVogenCatchPhrase,
 
 		CreatedAt: createdAt,
 
-		Temp: tempVarByVogen4,
+		Temp: tempVarByVogenTemp,
 	}
 }

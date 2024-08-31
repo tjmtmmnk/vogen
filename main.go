@@ -186,18 +186,18 @@ func {{$prefix}}{{.StructName}}({{range $index, $field := .Fields}}{{if $index}}
  {{range $index, $field := .Fields}}
    {{if isDefinedType .Type}}
      {{if constructorReturnsError .Type}}
-       tempVarByVogen{{$index}}, err := {{$prefix}}{{.Type}}({{.Name | camelCase}})
+       tempVarByVogen{{.Name}}, err := {{$prefix}}{{.Type}}({{.Name | camelCase}})
        if err != nil {
         return nil, err
        }
      {{else}}
-       tempVarByVogen{{$index}} := {{$prefix}}{{.Type}}({{.Name | camelCase}})
+       tempVarByVogen{{.Name}} := {{$prefix}}{{.Type}}({{.Name | camelCase}})
      {{end}}
   {{end}}
 {{end}}
   return &{{.StructName}}{
    {{range $index, $field := .Fields}}
-     {{.Name}}: {{if isDefinedType .Type}}tempVarByVogen{{$index}}{{else}}{{.Name | camelCase}}{{end}},
+     {{.Name}}: {{if isDefinedType .Type}}tempVarByVogen{{.Name}}{{else}}{{.Name | camelCase}}{{end}},
    {{end}}
   }{{if shouldReturnError}}, nil{{end}}
 }
