@@ -6,11 +6,3 @@ func NewNoFields() *NoFields {
 	return &NoFields{}
 
 }
-
-type rawNoFields struct {
-}
-
-func (d NoFields) RawValue() rawNoFields {
-
-	return rawNoFields{}
-}
