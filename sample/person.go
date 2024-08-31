@@ -1,6 +1,9 @@
 package sample
 
-import "time"
+import (
+	"testing"
+	"time"
+)
 
 type (
 	PersonName        string
@@ -8,7 +11,7 @@ type (
 	PersonCatchphrase *string
 )
 
-//go:generate go run github.com/tjmtmmnk/vogen -source $GOFILE -structs Person -prefix Parse -dir sample
+//go:generate go run github.com/tjmtmmnk/vogen -source $GOFILE -structs Person -prefix Parse -dir sample -factory true
 type Person struct {
 	Name        PersonName
 	Age         PersonAge
@@ -33,4 +36,25 @@ func ParsePersonCatchphrase(catchPhrase *string) PersonCatchphrase {
 
 func ParseTemp(temp int) Temp {
 	return Temp(temp)
+}
+
+func BuildPersonName(t *testing.T) PersonName {
+	return PersonName("aa")
+}
+
+func BuildPersonAge(t *testing.T) PersonAge {
+	return PersonAge(30)
+}
+
+func BuildPersonCatchphrase(t *testing.T) PersonCatchphrase {
+	catchPhrase := "Hello, World!"
+	return &catchPhrase
+}
+
+func BuildCreatedAt(t *testing.T) time.Time {
+	return time.Now()
+}
+
+func BuildTemp(t *testing.T) Temp {
+	return Temp(1)
 }

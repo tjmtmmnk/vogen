@@ -1,5 +1,7 @@
 package sample
 
+import "testing"
+
 type (
 	AddressNumber   int
 	AddressNumber2  AddressNumber
@@ -9,7 +11,7 @@ type (
 	Temp            int
 )
 
-//go:generate go run github.com/tjmtmmnk/vogen -source $GOFILE -structs Address -prefix New -dir sample
+//go:generate go run github.com/tjmtmmnk/vogen -source $GOFILE -structs Address -prefix New -dir sample -factory true
 type Address struct {
 	Number   AddressNumber
 	Number2  AddressNumber2
@@ -44,4 +46,25 @@ func NewAddressCity(city string) (AddressCity, error) {
 
 func NewAddressCountry(country string) (AddressCountry, error) {
 	return AddressCountry(country), nil
+}
+
+func BuildAddressNumber(t *testing.T) AddressNumber {
+	return AddressNumber(1)
+}
+
+func BuildAddressNumber2(t *testing.T) AddressNumber2 {
+	return AddressNumber2(2)
+}
+
+func BuildAddressNumber2p(t *testing.T) AddressNumber2p {
+	temp := AddressNumber(3)
+	return &temp
+}
+
+func BuildAddressCity(t *testing.T) AddressCity {
+	return AddressCity("city")
+}
+
+func BuildAddressCountry(t *testing.T) AddressCountry {
+	return AddressCountry("country")
 }
