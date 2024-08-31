@@ -39,7 +39,7 @@ func main() {
 	flag.Parse()
 
 	if *sourceFile == "" || *structNames == "" || *prefix == "" || *directory == "" {
-		log.Fatalf("Usage: go run gen.go -source <FileName> -structs <StructName1,StructName2,...> -prefix <Prefix> -dir <Directory>")
+		log.Fatalf("Usage: vogen -source <FileName> -structs <StructName1,StructName2,...> -prefix <Prefix> -dir <Directory>")
 	}
 
 	filename := *sourceFile
