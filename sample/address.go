@@ -6,9 +6,10 @@ type (
 	AddressNumber2p *AddressNumber
 	AddressCity     string
 	AddressCountry  string
+	Temp            int
 )
 
-//go:generate go run github.com/tjmtmmnk/vogen -source $GOFILE -structs Address -prefix New
+//go:generate go run github.com/tjmtmmnk/vogen -source $GOFILE -structs Address -prefix New -dir sample
 type Address struct {
 	Number   AddressNumber
 	Number2  AddressNumber2

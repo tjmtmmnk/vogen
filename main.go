@@ -35,19 +35,20 @@ func main() {
 	sourceFile := flag.String("source", "", "Source file name")
 	structNames := flag.String("structs", "", "Comma-separated list of struct names to generate")
 	prefix := flag.String("prefix", "", "Prefix for constructor function")
+	directory := flag.String("dir", "", "Directory to generate files")
 	flag.Parse()
 
-	if *sourceFile == "" || *structNames == "" || *prefix == "" {
-		log.Fatalf("Usage: go run gen.go -source <FileName> -structs <StructName1,StructName2,...> -prefix <Prefix>")
+	if *sourceFile == "" || *structNames == "" || *prefix == "" || *directory == "" {
+		log.Fatalf("Usage: go run gen.go -source <FileName> -structs <StructName1,StructName2,...> -prefix <Prefix> -dir <Directory>")
 	}
 
 	filename := *sourceFile
 	targetStructs := strings.Split(*structNames, ",")
 
 	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
+	pkgs, err := parser.ParseDir(fset, ".", nil, parser.ParseComments)
 	if err != nil {
-		log.Fatalf("failed to parse file: %v", err)
+		log.Fatalf("failed to parse package: %v", err)
 	}
 
 	typeMap := make(map[string]string)
@@ -55,51 +56,55 @@ func main() {
 	definedTypes := []DefinedType{}
 	constructorReturnsError := make(map[string]bool)
 
-	for _, f := range node.Decls {
-		if genDecl, ok := f.(*ast.GenDecl); ok {
-			for _, spec := range genDecl.Specs {
-				if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-					if ident, ok := typeSpec.Type.(*ast.Ident); ok {
-						typeMap[typeSpec.Name.Name] = ident.Name
-						definedTypes = append(definedTypes, DefinedType{Name: typeSpec.Name.Name, BaseType: ident.Name})
-					}
-					if starExpr, ok := typeSpec.Type.(*ast.StarExpr); ok {
-						if ident, ok := starExpr.X.(*ast.Ident); ok {
-							typeMap[typeSpec.Name.Name] = "*" + ident.Name
-							definedTypes = append(definedTypes, DefinedType{Name: typeSpec.Name.Name, BaseType: ident.Name})
-						}
-					}
-					if structType, ok := typeSpec.Type.(*ast.StructType); ok {
-						for _, targetStruct := range targetStructs {
-							if typeSpec.Name.Name == targetStruct {
-								fields := []Field{}
-								for _, field := range structType.Fields.List {
-									fieldType := exprToString(field.Type)
-									for _, name := range field.Names {
-										fields = append(fields, Field{Name: name.Name, Type: fieldType})
+	for _, pkg := range pkgs {
+		for _, node := range pkg.Files {
+			for _, f := range node.Decls {
+				if genDecl, ok := f.(*ast.GenDecl); ok {
+					for _, spec := range genDecl.Specs {
+						if typeSpec, ok := spec.(*ast.TypeSpec); ok {
+							if ident, ok := typeSpec.Type.(*ast.Ident); ok {
+								typeMap[typeSpec.Name.Name] = ident.Name
+								definedTypes = append(definedTypes, DefinedType{Name: typeSpec.Name.Name, BaseType: ident.Name})
+							}
+							if starExpr, ok := typeSpec.Type.(*ast.StarExpr); ok {
+								if ident, ok := starExpr.X.(*ast.Ident); ok {
+									typeMap[typeSpec.Name.Name] = "*" + ident.Name
+									definedTypes = append(definedTypes, DefinedType{Name: typeSpec.Name.Name, BaseType: ident.Name})
+								}
+							}
+							if structType, ok := typeSpec.Type.(*ast.StructType); ok {
+								for _, targetStruct := range targetStructs {
+									if typeSpec.Name.Name == targetStruct {
+										fields := []Field{}
+										for _, field := range structType.Fields.List {
+											fieldType := exprToString(field.Type)
+											for _, name := range field.Names {
+												fields = append(fields, Field{Name: name.Name, Type: fieldType})
+											}
+										}
+										constructors = append(constructors, TemplateData{
+											ConstructorPrefix: *prefix,
+											PackageName:       node.Name.Name,
+											StructName:        typeSpec.Name.Name,
+											Fields:            fields,
+											DefinedTypes:      definedTypes,
+										})
 									}
 								}
-								constructors = append(constructors, TemplateData{
-									ConstructorPrefix: *prefix,
-									PackageName:       node.Name.Name,
-									StructName:        typeSpec.Name.Name,
-									Fields:            fields,
-									DefinedTypes:      definedTypes,
-								})
 							}
 						}
 					}
 				}
 			}
-		}
-	}
 
-	for _, f := range node.Decls {
-		if funcDecl, ok := f.(*ast.FuncDecl); ok {
-			if funcDecl.Recv == nil && strings.HasPrefix(funcDecl.Name.Name, *prefix) {
-				if funcDecl.Type.Results != nil && len(funcDecl.Type.Results.List) > 1 {
-					if ident, ok := funcDecl.Type.Results.List[1].Type.(*ast.Ident); ok && ident.Name == "error" {
-						constructorReturnsError[funcDecl.Name.Name] = true
+			for _, f := range node.Decls {
+				if funcDecl, ok := f.(*ast.FuncDecl); ok {
+					if funcDecl.Recv == nil && strings.HasPrefix(funcDecl.Name.Name, *prefix) {
+						if funcDecl.Type.Results != nil && len(funcDecl.Type.Results.List) > 1 {
+							if ident, ok := funcDecl.Type.Results.List[1].Type.(*ast.Ident); ok && ident.Name == "error" {
+								constructorReturnsError[funcDecl.Name.Name] = true
+							}
+						}
 					}
 				}
 			}

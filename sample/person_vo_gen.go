@@ -3,13 +3,15 @@ package sample
 
 import "time"
 
-func ParsePerson(name string, age int, catchPhrase *string, createdAt time.Time) *Person {
+func ParsePerson(name string, age int, catchPhrase *string, createdAt time.Time, temp int) *Person {
 
 	tempVarByVogen0 := ParsePersonName(name)
 
 	tempVarByVogen1 := ParsePersonAge(age)
 
 	tempVarByVogen2 := ParsePersonCatchphrase(catchPhrase)
+
+	tempVarByVogen4 := ParseTemp(temp)
 
 	return &Person{
 
@@ -20,6 +22,8 @@ func ParsePerson(name string, age int, catchPhrase *string, createdAt time.Time)
 		CatchPhrase: tempVarByVogen2,
 
 		CreatedAt: createdAt,
+
+		Temp: tempVarByVogen4,
 	}
 
 }
