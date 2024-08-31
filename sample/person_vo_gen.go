@@ -25,5 +25,4 @@ func ParsePerson(name string, age int, catchPhrase *string, createdAt time.Time,
 
 		Temp: tempVarByVogen4,
 	}
-
 }

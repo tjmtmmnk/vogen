@@ -4,5 +4,4 @@ package sample
 func NewNoFields() (*NoFields, error) {
 
 	return &NoFields{}, nil
-
 }

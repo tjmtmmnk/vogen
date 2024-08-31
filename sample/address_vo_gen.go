@@ -40,5 +40,4 @@ func NewAddress(number int, number2 int, number2p *int, city string, country str
 
 		Country: tempVarByVogen4,
 	}, nil
-
 }

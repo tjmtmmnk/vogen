@@ -195,19 +195,11 @@ func {{$prefix}}{{.StructName}}({{range $index, $field := .Fields}}{{if $index}}
      {{end}}
   {{end}}
 {{end}}
-{{if shouldReturnError}}
   return &{{.StructName}}{
    {{range $index, $field := .Fields}}
      {{.Name}}: {{if isDefinedType .Type}}tempVarByVogen{{$index}}{{else}}{{.Name | camelCase}}{{end}},
    {{end}}
-  }, nil
-{{else}}
-  return &{{.StructName}}{
-   {{range $index, $field := .Fields}}
-     {{.Name}}: {{if isDefinedType .Type}}tempVarByVogen{{$index}}{{else}}{{.Name | camelCase}}{{end}},
-   {{end}}
-  }
-{{end}}
+  }{{if shouldReturnError}}, nil{{end}}
 }
 `)
 	if err != nil {
