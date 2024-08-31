@@ -8,7 +8,7 @@ type (
 	PersonCatchphrase *string
 )
 
-//go:generate go run github.com/tjmtmmnk/vogen -source $GOFILE -structs Person
+//go:generate go run github.com/tjmtmmnk/vogen -source $GOFILE -structs Person -prefix Parse
 type Person struct {
 	Name        PersonName
 	Age         PersonAge
@@ -18,14 +18,14 @@ type Person struct {
 
 type NotGenerated struct{}
 
-func NewPersonName(name string) PersonName {
+func ParsePersonName(name string) PersonName {
 	return PersonName(name)
 }
 
-func NewPersonAge(age int) PersonAge {
+func ParsePersonAge(age int) PersonAge {
 	return PersonAge(age)
 }
 
-func NewPersonCatchphrase(catchPhrase *string) PersonCatchphrase {
+func ParsePersonCatchphrase(catchPhrase *string) PersonCatchphrase {
 	return catchPhrase
 }

@@ -8,7 +8,7 @@ type (
 	AddressCountry  string
 )
 
-//go:generate go run github.com/tjmtmmnk/vogen -source $GOFILE -structs Address
+//go:generate go run github.com/tjmtmmnk/vogen -source $GOFILE -structs Address -prefix New
 type Address struct {
 	Number   AddressNumber
 	Number2  AddressNumber2
