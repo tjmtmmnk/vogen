@@ -246,9 +246,10 @@ type {{.StructName}}Setter struct {
 
 func Build{{.StructName}}(t *testing.T, s *{{.StructName}}Setter) *{{.StructName}} {
   obj := &{{.StructName}}{}
+  {{$structName := .StructName}}
   {{range $index, $field := .Fields}}
 	if s.{{$field.Name}} == nil {
-      obj.{{$field.Name}} = {{if isDefinedType .Type}}Build{{.Type}}(t){{else}}Build{{.Name}}(t){{end}}
+      obj.{{$field.Name}} = {{if isDefinedType .Type}}Build{{.Type}}(t){{else}}Build{{$structName}}{{.Name}}(t){{end}}
     } else {
       obj.{{$field.Name}} = *s.{{$field.Name}}
     }

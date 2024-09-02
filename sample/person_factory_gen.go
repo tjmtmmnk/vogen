@@ -40,7 +40,7 @@ func BuildPerson(t *testing.T, s *PersonSetter) *Person {
 	}
 
 	if s.CreatedAt == nil {
-		obj.CreatedAt = BuildCreatedAt(t)
+		obj.CreatedAt = BuildPersonCreatedAt(t)
 	} else {
 		obj.CreatedAt = *s.CreatedAt
 	}

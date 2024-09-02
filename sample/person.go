@@ -51,7 +51,7 @@ func BuildPersonCatchphrase(t *testing.T) PersonCatchphrase {
 	return &catchPhrase
 }
 
-func BuildCreatedAt(t *testing.T) time.Time {
+func BuildPersonCreatedAt(t *testing.T) time.Time {
 	return time.Now()
 }
 
