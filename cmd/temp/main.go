@@ -11,6 +11,10 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+func debug(x any) {
+	fmt.Printf("%#v\n", x)
+}
+
 func main() {
 	ctx := context.Background()
 	wd, err := os.Getwd()
@@ -19,34 +23,32 @@ func main() {
 	}
 	cfg := &packages.Config{
 		Context: ctx,
-		Mode:    packages.LoadAllSyntax,
+		Mode:    packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo,
 		Dir:     wd,
 	}
-	pkgs, err := packages.Load(cfg, "./sample")
+	pkgs, err := packages.Load(cfg, "./sample/address.go")
 	if err != nil {
 		panic(err)
 	}
 	for _, pkg := range pkgs {
-		typeMap := map[string]types.TypeAndValue{}
-		for k, v := range maps.All(pkg.TypesInfo.Types) {
-			if t, ok := k.(*ast.Ident); ok {
-				typeMap[t.Name] = v
-			}
-		}
+		typeNameToUnderlyingType := map[string]types.Type{}
 		for _, file := range pkg.Syntax {
 			for _, decl := range file.Decls {
 				if genDecl, ok := decl.(*ast.GenDecl); ok {
 					for _, spec := range genDecl.Specs {
 						if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-							if t, ok := typeMap[typeSpec.Name.Name]; ok {
-								if named, ok := t.Type.(*types.Named); ok {
-									fmt.Println(named, named.Underlying())
-								}
+							switch t := typeSpec.Type.(type) {
+							case *ast.Ident, *ast.SelectorExpr:
+								ty := pkg.TypesInfo.TypeOf(t)
+								typeNameToUnderlyingType[typeSpec.Name.Name] = ty
 							}
 						}
 					}
 				}
 			}
+		}
+		for k, v := range maps.All(typeNameToUnderlyingType) {
+			fmt.Printf("%s\t%s\t%s\n", k, v.String(), v.Underlying())
 		}
 	}
 }
