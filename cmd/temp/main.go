@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/types"
-	"maps"
 	"os"
 
 	"golang.org/x/tools/go/packages"
@@ -13,6 +12,16 @@ import (
 
 func debug(x any) {
 	fmt.Printf("%#v\n", x)
+}
+
+type structField struct {
+	Name string
+	Type string
+}
+
+type underlyingType struct {
+	Name string
+	Type string
 }
 
 func main() {
@@ -30,25 +39,65 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	var underlyingTypes []*underlyingType
+	var structFields []*structField
+
 	for _, pkg := range pkgs {
-		typeNameToUnderlyingType := map[string]types.Type{}
 		for _, file := range pkg.Syntax {
 			for _, decl := range file.Decls {
 				if genDecl, ok := decl.(*ast.GenDecl); ok {
 					for _, spec := range genDecl.Specs {
 						if typeSpec, ok := spec.(*ast.TypeSpec); ok {
 							switch t := typeSpec.Type.(type) {
-							case *ast.Ident, *ast.SelectorExpr:
-								ty := pkg.TypesInfo.TypeOf(t)
-								typeNameToUnderlyingType[typeSpec.Name.Name] = ty
+							case *ast.StructType:
+								for _, field := range t.Fields.List {
+									if field.Names == nil || len(field.Names) == 0 {
+										panic("field.Names is nil or empty")
+									}
+									name := field.Names[0]
+									if ident, ok := field.Type.(*ast.Ident); ok {
+										structFields = append(structFields, &structField{
+											Name: name.Name,
+											Type: ident.Name,
+										})
+									}
+									if selector, ok := field.Type.(*ast.SelectorExpr); ok {
+										ty := pkg.TypesInfo.TypeOf(selector)
+										structFields = append(structFields, &structField{
+											Name: name.Name,
+											Type: ty.String(),
+										})
+									}
+								}
+							default:
+								underlyingTypes = append(underlyingTypes, &underlyingType{
+									Name: typeSpec.Name.Name,
+									Type: getUnderlyingType(pkg.TypesInfo, t),
+								})
 							}
 						}
 					}
 				}
 			}
 		}
-		for k, v := range maps.All(typeNameToUnderlyingType) {
-			fmt.Printf("%s\t%s\t%s\n", k, v.String(), v.Underlying())
+		for _, v := range underlyingTypes {
+			debug(v)
+		}
+		for _, v := range structFields {
+			debug(v)
 		}
 	}
+}
+
+func getUnderlyingType(info *types.Info, spec ast.Expr) string {
+	switch t := spec.(type) {
+	case *ast.Ident:
+		ty := info.TypeOf(t)
+		return ty.Underlying().String()
+	case *ast.SelectorExpr:
+		ty := info.TypeOf(t)
+		return ty.String() // time.Timeのような型はそのまま使う。Underlying()はtime.Timeの構造体の中身を指すため。
+	}
+	return ""
 }
