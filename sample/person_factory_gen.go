@@ -14,8 +14,6 @@ type PersonSetter struct {
 	CatchPhrase *PersonCatchphrase
 
 	CreatedAt *time.Time
-
-	Temp *Temp
 }
 
 func BuildPerson(t *testing.T, s *PersonSetter) *Person {
@@ -34,7 +32,7 @@ func BuildPerson(t *testing.T, s *PersonSetter) *Person {
 	}
 
 	if s.CatchPhrase == nil {
-		obj.CatchPhrase = BuildPersonCatchphrase(t)
+		obj.CatchPhrase = BuildPersonCatchPhrase(t)
 	} else {
 		obj.CatchPhrase = *s.CatchPhrase
 	}
@@ -43,12 +41,6 @@ func BuildPerson(t *testing.T, s *PersonSetter) *Person {
 		obj.CreatedAt = BuildPersonCreatedAt(t)
 	} else {
 		obj.CreatedAt = *s.CreatedAt
-	}
-
-	if s.Temp == nil {
-		obj.Temp = BuildTemp(t)
-	} else {
-		obj.Temp = *s.Temp
 	}
 
 	return obj

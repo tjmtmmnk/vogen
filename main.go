@@ -1,137 +1,190 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
 	"go/ast"
-	"go/parser"
-	"go/token"
+	"go/types"
 	"log"
 	"os"
 	"os/exec"
+	"regexp"
+	"slices"
 	"strings"
 	"text/template"
 	"unicode"
+
+	"golang.org/x/tools/go/packages"
 )
 
-type Field struct {
+func debug(x any) {
+	fmt.Printf("%#v\n", x)
+}
+
+type Struct struct {
+	Name   string
+	Fields []*StructField
+}
+
+type StructField struct {
 	Name string
 	Type string
 }
 
-type DefinedType struct {
-	Name     string
-	BaseType string
+type TemplateData struct {
+	ConstructorPrefix        string
+	PackageName              string
+	Structs                  []*Struct
+	ImportPaths              []string
+	TypeNameToUnderlyingType map[string]string
+	ConstructorReturnsError  map[string]bool
 }
 
-type TemplateData struct {
-	ConstructorPrefix string
-	PackageName       string
-	StructName        string
-	Fields            []Field
-	DefinedTypes      []DefinedType
-}
+var regex = regexp.MustCompile(`^(.+)/(\w+\.\w+)$`)
 
 func main() {
-	sourceFile := flag.String("source", "", "Source file name")
+	filePath := flag.String("path", "", "Source file path")
 	structNames := flag.String("structs", "", "Comma-separated list of struct names to generate")
 	prefix := flag.String("prefix", "", "Prefix for constructor function")
-	directory := flag.String("dir", "", "Directory to generate files")
 	factory := flag.Bool("factory", false, "Generate factory functions")
 	flag.Parse()
 
-	if *sourceFile == "" || *structNames == "" || *prefix == "" || *directory == "" {
-		log.Fatalf("Usage: vogen -source <FileName> -structs <StructName1,StructName2,...> -prefix <Prefix> -dir <Directory>")
+	if *filePath == "" || *structNames == "" || *prefix == "" {
+		log.Fatalf("Usage: vogen -path <FilePath> -structs <StructName1,StructName2,...> -prefix <Prefix>")
 	}
 
-	filename := *sourceFile
 	targetStructs := strings.Split(*structNames, ",")
 
-	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, ".", nil, parser.ParseComments)
+	ctx := context.Background()
+	wd, err := os.Getwd()
 	if err != nil {
-		log.Fatalf("failed to parse package: %v", err)
+		panic(err)
+	}
+	cfg := &packages.Config{
+		Context: ctx,
+		Mode:    packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo,
+		Dir:     wd,
+	}
+	pkgs, err := packages.Load(cfg, *filePath)
+	if err != nil {
+		panic(err)
 	}
 
-	typeMap := make(map[string]string)
-	constructors := []TemplateData{}
-	definedTypes := []DefinedType{}
-	constructorReturnsError := make(map[string]bool)
+	if len(pkgs) == 0 {
+		log.Fatalf("no packages found")
+	}
 
-	for _, pkg := range pkgs {
-		for _, node := range pkg.Files {
-			for _, f := range node.Decls {
-				if genDecl, ok := f.(*ast.GenDecl); ok {
-					for _, spec := range genDecl.Specs {
-						if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-							if ident, ok := typeSpec.Type.(*ast.Ident); ok {
-								typeMap[typeSpec.Name.Name] = ident.Name
-								definedTypes = append(definedTypes, DefinedType{Name: typeSpec.Name.Name, BaseType: ident.Name})
+	pkg := pkgs[0]
+	data := &TemplateData{
+		PackageName:              pkg.Name,
+		ConstructorPrefix:        *prefix,
+		Structs:                  make([]*Struct, 0),
+		TypeNameToUnderlyingType: make(map[string]string),
+		ConstructorReturnsError:  make(map[string]bool),
+	}
+
+	for _, syntax := range pkg.Syntax {
+		for _, decl := range syntax.Decls {
+			if genDecl, ok := decl.(*ast.GenDecl); ok {
+				for _, spec := range genDecl.Specs {
+					if typeSpec, ok := spec.(*ast.TypeSpec); ok {
+						switch t := typeSpec.Type.(type) {
+						case *ast.StructType:
+							structFields := make([]*StructField, len(t.Fields.List))
+							structName := typeSpec.Name.Name
+
+							if !slices.Contains(targetStructs, structName) {
+								continue
 							}
-							if starExpr, ok := typeSpec.Type.(*ast.StarExpr); ok {
-								if ident, ok := starExpr.X.(*ast.Ident); ok {
-									typeMap[typeSpec.Name.Name] = "*" + ident.Name
-									definedTypes = append(definedTypes, DefinedType{Name: typeSpec.Name.Name, BaseType: ident.Name})
+
+							for i, field := range t.Fields.List {
+								if field.Names == nil || len(field.Names) == 0 {
+									panic("field.Names is nil or empty")
 								}
-							}
-							if structType, ok := typeSpec.Type.(*ast.StructType); ok {
-								for _, targetStruct := range targetStructs {
-									if typeSpec.Name.Name == targetStruct {
-										fields := []Field{}
-										for _, field := range structType.Fields.List {
-											fieldType := exprToString(field.Type)
-											for _, name := range field.Names {
-												fields = append(fields, Field{Name: name.Name, Type: fieldType})
-											}
-										}
-										constructors = append(constructors, TemplateData{
-											ConstructorPrefix: *prefix,
-											PackageName:       node.Name.Name,
-											StructName:        typeSpec.Name.Name,
-											Fields:            fields,
-											DefinedTypes:      definedTypes,
-										})
+								name := field.Names[0].Name
+								if ident, ok := field.Type.(*ast.Ident); ok {
+									structFields[i] = &StructField{
+										Name: name,
+										Type: ident.Name,
+									}
+								} else if selector, ok := field.Type.(*ast.SelectorExpr); ok {
+									ty := pkg.TypesInfo.TypeOf(selector)
+									typeName, importPath := extractTypeAndImportPath(ty.String())
+									structFields[i] = &StructField{
+										Name: name,
+										Type: typeName,
+									}
+									if importPath != "" {
+										data.ImportPaths = append(data.ImportPaths, importPath)
 									}
 								}
 							}
+							data.Structs = append(data.Structs, &Struct{
+								Name:   structName,
+								Fields: structFields,
+							})
+						default:
+							typeName, importPath := extractTypeAndImportPath(getUnderlyingType(pkg.TypesInfo, t))
+							if importPath != "" {
+								data.ImportPaths = append(data.ImportPaths, importPath)
+							}
+							data.TypeNameToUnderlyingType[typeSpec.Name.Name] = typeName
 						}
 					}
 				}
 			}
+			if funcDecl, ok := decl.(*ast.FuncDecl); ok {
+				data.ConstructorReturnsError[funcDecl.Name.Name] = false
 
-			for _, f := range node.Decls {
-				if funcDecl, ok := f.(*ast.FuncDecl); ok {
-					if funcDecl.Recv == nil && strings.HasPrefix(funcDecl.Name.Name, *prefix) {
-						if funcDecl.Type.Results != nil && len(funcDecl.Type.Results.List) > 1 {
-							if ident, ok := funcDecl.Type.Results.List[1].Type.(*ast.Ident); ok && ident.Name == "error" {
-								constructorReturnsError[funcDecl.Name.Name] = true
-							}
-						}
+				list := funcDecl.Type.Results.List
+				// (type, error)のみ対応
+				if funcDecl.Type.Results != nil && len(list) == 2 {
+					if ident, ok := list[1].Type.(*ast.Ident); ok && ident.Name == "error" {
+						data.ConstructorReturnsError[funcDecl.Name.Name] = true
 					}
 				}
 			}
 		}
 	}
 
-	for _, constructor := range constructors {
-		generateConstructor(filename, constructor, typeMap, constructorReturnsError, *prefix)
-		if *factory {
-			generateFactory(filename, constructor, typeMap)
-		}
+	generateConstructor(*filePath, data)
+
+	if *factory {
+		generateFactory(*filePath, data)
 	}
 }
 
-func exprToString(expr ast.Expr) string {
-	switch v := expr.(type) {
-	case *ast.Ident:
-		return v.Name
+func extractTypeAndImportPath(s string) (string, string) {
+	if !regex.MatchString(s) {
+		return s, ""
+	}
+	matches := regex.FindStringSubmatch(s)
+	qualifiedTypeName := matches[2]
+	sp := strings.Split(qualifiedTypeName, ".")
+	if len(sp) != 2 {
+		return s, ""
+	}
+	importPath := matches[1] + "/" + sp[0]
+	return qualifiedTypeName, importPath
+}
+
+func getUnderlyingType(info *types.Info, expr ast.Expr) string {
+	switch t := expr.(type) {
 	case *ast.SelectorExpr:
-		return exprToString(v.X) + "." + v.Sel.Name
+		ty := info.TypeOf(t)
+		return ty.String() // time.Timeのような型はそのまま使う。Underlying()はtime.Timeの構造体の中身を指すため。
 	case *ast.StarExpr:
-		return "*" + exprToString(v.X)
-	case *ast.ArrayType:
-		return "[]" + exprToString(v.Elt)
+		ty := info.TypeOf(t)
+		if pointer, ok := ty.(*types.Pointer); ok {
+			if named, ok := pointer.Elem().(*types.Named); ok {
+				return "*" + named.Obj().Name()
+			}
+		}
+		return ty.Underlying().String()
 	default:
-		return ""
+		ty := info.TypeOf(t)
+		return ty.Underlying().String()
 	}
 }
 
@@ -144,67 +197,86 @@ func toCamelCase(s string) string {
 	return string(runes)
 }
 
-func generateConstructor(filename string, data TemplateData, typeMap map[string]string, constructorReturnsError map[string]bool, prefix string) {
+func toPascalCase(s string) string {
+	if s == "" {
+		return s
+	}
+	runes := []rune(s)
+	runes[0] = unicode.ToUpper(runes[0])
+	return string(runes)
+}
+
+func uniqueImportPaths(data *TemplateData) []string {
+	seen := map[string]bool{}
+	uniqueImportPaths := make([]string, 0, len(data.ImportPaths))
+	for _, path := range data.ImportPaths {
+		if _, ok := seen[path]; !ok {
+			uniqueImportPaths = append(uniqueImportPaths, path)
+			seen[path] = true
+		}
+	}
+	return uniqueImportPaths
+}
+
+func generateConstructor(filename string, data *TemplateData) {
 	tmpl, err := template.New("constructor").Funcs(template.FuncMap{
-		"camelCase": toCamelCase,
-		"isDefinedType": func(typ string) bool {
-			_, defined := typeMap[typ]
-			return defined
-		},
-		"getRootBaseType": func(typ string) string {
-			/*
-				type A int
-				type B A
-				 のように定義されている場合、BのRootBaseTypeはintになる
-			*/
-			for {
-				isPtr := strings.HasPrefix(typ, "*")
-				if isPtr {
-					notPtrTyp := strings.TrimPrefix(typ, "*")
-					baseType, defined := typeMap[notPtrTyp]
-					if defined {
-						return "*" + baseType
-					}
-				}
-				baseType, defined := typeMap[typ]
-				if !defined {
-					break
-				}
-				typ = baseType
-			}
-			return typ
-		},
+		"camelCase":  toCamelCase,
+		"pascalCase": toPascalCase,
 		"shouldReturnError": func() bool {
-			return len(constructorReturnsError) > 0
+			return len(data.ConstructorReturnsError) > 0
 		},
-		"constructorReturnsError": func(typ string) bool {
-			return constructorReturnsError[prefix+typ]
+		"constructorReturnsError": func(constructorName string) bool {
+			return data.ConstructorReturnsError[constructorName]
 		},
 		"isPointer": func(typ string) bool {
 			return strings.HasPrefix(typ, "*")
 		},
+		"getUnderlyingType": func(typeName string) string {
+			underlying, ok := data.TypeNameToUnderlyingType[typeName]
+			if !ok {
+				return typeName
+			}
+			return underlying
+		},
+		"hasConstructor": func(constructorName string) bool {
+			_, ok := data.ConstructorReturnsError[constructorName]
+			return ok
+		},
+		"uniqueImportPaths": func() []string {
+			return uniqueImportPaths(data)
+		},
 	}).Parse(`// Code generated by vogen DO NOT EDIT.
 package {{.PackageName}}
+import (
+  {{range uniqueImportPaths}}
+	"{{.}}"
+  {{end}}
+)
 {{$prefix := .ConstructorPrefix}}
-func {{$prefix}}{{.StructName}}({{range $index, $field := .Fields}}{{if $index}}, {{end}}{{$field.Name | camelCase}} {{if isDefinedType $field.Type}}{{getRootBaseType $field.Type}}{{else}}{{$field.Type}}{{end}}{{end}}) {{if shouldReturnError}}(*{{.StructName}}, error){{else}}*{{.StructName}}{{end}} {
- {{range $index, $field := .Fields}}
-   {{if isDefinedType .Type}}
-     {{if constructorReturnsError .Type}}
-       tempVarByVogen{{.Name}}, err := {{$prefix}}{{.Type}}({{.Name | camelCase}})
-       if err != nil {
-        return nil, err
-       }
-     {{else}}
-       tempVarByVogen{{.Name}} := {{$prefix}}{{.Type}}({{.Name | camelCase}})
+{{range .Structs}}
+  {{$structName := .Name}}
+  func {{$prefix}}{{$structName}}({{range $index, $field := .Fields}}{{if $index}}, {{end}}{{$field.Name | camelCase}} {{ getUnderlyingType $field.Type }}{{end}}) {{if shouldReturnError}}(*{{$structName}}, error){{else}}*{{$structName}}{{end}} {
+   {{range $index, $field := .Fields}}
+     {{$constructorName := printf "%s%s%s" ($prefix | pascalCase) ($structName | pascalCase) ($field.Name | pascalCase)}}
+     {{if hasConstructor $constructorName}}
+       {{if constructorReturnsError $constructorName}}
+         tempVarByVogen{{.Name}}, err := {{$constructorName}}({{.Name | camelCase}})
+         if err != nil {
+          return nil, err
+         }
+       {{else}}
+         tempVarByVogen{{.Name}} := {{$constructorName}}({{.Name | camelCase}})
+       {{end}}
      {{end}}
   {{end}}
+    return &{{$structName}}{
+     {{range $index, $field := .Fields}}
+       {{$constructorName := printf "%s%s%s" ($prefix | pascalCase) ($structName | pascalCase) ($field.Name | pascalCase)}}
+       {{.Name}}: {{if hasConstructor $constructorName}}tempVarByVogen{{.Name}}{{else}}{{.Name | camelCase}}{{end}},
+     {{end}}
+    }{{if shouldReturnError}}, nil{{end}}
+  }
 {{end}}
-  return &{{.StructName}}{
-   {{range $index, $field := .Fields}}
-     {{.Name}}: {{if isDefinedType .Type}}tempVarByVogen{{.Name}}{{else}}{{.Name | camelCase}}{{end}},
-   {{end}}
-  }{{if shouldReturnError}}, nil{{end}}
-}
 `)
 	if err != nil {
 		log.Fatalf("failed to parse template: %v", err)
@@ -226,36 +298,45 @@ func {{$prefix}}{{.StructName}}({{range $index, $field := .Fields}}{{if $index}}
 	runGoImports(outputFilename)
 	runGoFmt(outputFilename)
 
-	log.Printf("Constructor for %s generated successfully in %s\n", data.StructName, outputFilename)
+	log.Printf("successfully in %s\n", outputFilename)
 }
 
-func generateFactory(filename string, data TemplateData, typeMap map[string]string) {
+func generateFactory(filename string, data *TemplateData) {
 	tmpl, err := template.New("factory").Funcs(template.FuncMap{
-		"camelCase": toCamelCase,
-		"isDefinedType": func(typ string) bool {
-			_, defined := typeMap[typ]
-			return defined
+		"pascalCase": toPascalCase,
+		"camelCase":  toCamelCase,
+		"uniqueImportPaths": func() []string {
+			return uniqueImportPaths(data)
 		},
 	}).Parse(`// Code generated by vogen DO NOT EDIT.
 package {{.PackageName}}
-type {{.StructName}}Setter struct {
-  {{range $index, $field := .Fields}}
-	{{$field.Name}} *{{$field.Type}}
+import (
+  {{range uniqueImportPaths}}
+	"{{.}}"
   {{end}}
-}
-
-func Build{{.StructName}}(t *testing.T, s *{{.StructName}}Setter) *{{.StructName}} {
-  obj := &{{.StructName}}{}
-  {{$structName := .StructName}}
-  {{range $index, $field := .Fields}}
-	if s.{{$field.Name}} == nil {
-      obj.{{$field.Name}} = {{if isDefinedType .Type}}Build{{.Type}}(t){{else}}Build{{$structName}}{{.Name}}(t){{end}}
-    } else {
-      obj.{{$field.Name}} = *s.{{$field.Name}}
-    }
-  {{end}}
-  return obj
-}
+  "testing"
+)
+{{range .Structs}}
+  {{$structName := .Name}}
+  type {{$structName}}Setter struct {
+    {{range $index, $field := .Fields}}
+  	{{$field.Name}} *{{$field.Type}}
+    {{end}}
+  }
+  
+  func Build{{$structName}}(t *testing.T, s *{{$structName}}Setter) *{{$structName}} {
+    obj := &{{$structName}}{}
+    {{range $index, $field := .Fields}}
+  	{{$constructorName := printf "Build%s%s" ($structName | pascalCase) ($field.Name | pascalCase)}}
+  	if s.{{$field.Name}} == nil {
+        obj.{{$field.Name}} = {{$constructorName}}(t)
+      } else {
+        obj.{{$field.Name}} = *s.{{$field.Name}}
+      }
+    {{end}}
+    return obj
+  }
+{{end}}
 `)
 	if err != nil {
 		log.Fatalf("failed to parse template: %v", err)
@@ -278,7 +359,7 @@ func Build{{.StructName}}(t *testing.T, s *{{.StructName}}Setter) *{{.StructName
 	runGoImports(outputFilename)
 	runGoFmt(outputFilename)
 
-	log.Printf("Factory for %s generated successfully in %s\n", data.StructName, outputFilename)
+	log.Printf("generate factory successfully in %s\n", outputFilename)
 }
 
 func runGoImports(filename string) {
