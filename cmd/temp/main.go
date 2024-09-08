@@ -57,79 +57,80 @@ func main() {
 		panic(err)
 	}
 
-	dataList := make([]*TemplateData, 0, len(pkgs))
+	if len(pkgs) == 0 {
+		log.Fatalf("no packages found")
+	}
 
-	for _, pkg := range pkgs {
-		data := &TemplateData{
-			Structs:                  make([]*Struct, 0),
-			TypeNameToUnderlyingType: make(map[string]string),
-			ConstructorReturnsError:  make(map[string]bool),
-		}
+	pkg := pkgs[0]
+	data := &TemplateData{
+		Structs:                  make([]*Struct, 0),
+		TypeNameToUnderlyingType: make(map[string]string),
+		ConstructorReturnsError:  make(map[string]bool),
+	}
 
-		for _, syntax := range pkg.Syntax {
-			for _, decl := range syntax.Decls {
-				if genDecl, ok := decl.(*ast.GenDecl); ok {
-					for _, spec := range genDecl.Specs {
-						if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-							switch t := typeSpec.Type.(type) {
-							case *ast.StructType:
-								structFields := make([]*StructField, len(t.Fields.List))
+	for _, syntax := range pkg.Syntax {
+		for _, decl := range syntax.Decls {
+			if genDecl, ok := decl.(*ast.GenDecl); ok {
+				for _, spec := range genDecl.Specs {
+					if typeSpec, ok := spec.(*ast.TypeSpec); ok {
+						switch t := typeSpec.Type.(type) {
+						case *ast.StructType:
+							structFields := make([]*StructField, len(t.Fields.List))
 
-								for i, field := range t.Fields.List {
-									if field.Names == nil || len(field.Names) == 0 {
-										panic("field.Names is nil or empty")
+							for i, field := range t.Fields.List {
+								if field.Names == nil || len(field.Names) == 0 {
+									panic("field.Names is nil or empty")
+								}
+								name := field.Names[0]
+								if ident, ok := field.Type.(*ast.Ident); ok {
+									structFields[i] = &StructField{
+										Name: name.Name,
+										Type: ident.Name,
 									}
-									name := field.Names[0]
-									if ident, ok := field.Type.(*ast.Ident); ok {
-										structFields[i] = &StructField{
-											Name: name.Name,
-											Type: ident.Name,
-										}
-									} else if selector, ok := field.Type.(*ast.SelectorExpr); ok {
-										ty := pkg.TypesInfo.TypeOf(selector)
-										typeName, importPath := extractTypeAndImportPath(ty.String())
-										structFields[i] = &StructField{
-											Name: name.Name,
-											Type: typeName,
-										}
-										if importPath != "" {
-											data.ImportPaths = append(data.ImportPaths, importPath)
-										}
+								} else if selector, ok := field.Type.(*ast.SelectorExpr); ok {
+									ty := pkg.TypesInfo.TypeOf(selector)
+									typeName, importPath := extractTypeAndImportPath(ty.String())
+									structFields[i] = &StructField{
+										Name: name.Name,
+										Type: typeName,
+									}
+									if importPath != "" {
+										data.ImportPaths = append(data.ImportPaths, importPath)
 									}
 								}
-								data.Structs = append(data.Structs, &Struct{
-									Name:   typeSpec.Name.Name,
-									Fields: structFields,
-								})
-							default:
-								typeName, importPath := extractTypeAndImportPath(getUnderlyingType(pkg.TypesInfo, t))
-								if importPath != "" {
-									data.ImportPaths = append(data.ImportPaths, importPath)
-								}
-								data.TypeNameToUnderlyingType[typeSpec.Name.Name] = typeName
 							}
-						}
-					}
-				}
-				if funcDecl, ok := decl.(*ast.FuncDecl); ok {
-					data.ConstructorReturnsError[funcDecl.Name.Name] = false
-
-					list := funcDecl.Type.Results.List
-					// (type, error)のみ対応
-					if funcDecl.Type.Results != nil && len(list) == 2 {
-						if ident, ok := list[1].Type.(*ast.Ident); ok && ident.Name == "error" {
-							data.ConstructorReturnsError[funcDecl.Name.Name] = true
+							data.Structs = append(data.Structs, &Struct{
+								Name:   typeSpec.Name.Name,
+								Fields: structFields,
+							})
+						default:
+							typeName, importPath := extractTypeAndImportPath(getUnderlyingType(pkg.TypesInfo, t))
+							if importPath != "" {
+								data.ImportPaths = append(data.ImportPaths, importPath)
+							}
+							data.TypeNameToUnderlyingType[typeSpec.Name.Name] = typeName
 						}
 					}
 				}
 			}
-		}
+			if funcDecl, ok := decl.(*ast.FuncDecl); ok {
+				data.ConstructorReturnsError[funcDecl.Name.Name] = false
 
-		dataList = append(dataList, data)
-		data.PackageName = pkg.Name
-		data.ConstructorPrefix = "New"
-		generateConstructor("sample/address.go", *data)
+				list := funcDecl.Type.Results.List
+				// (type, error)のみ対応
+				if funcDecl.Type.Results != nil && len(list) == 2 {
+					if ident, ok := list[1].Type.(*ast.Ident); ok && ident.Name == "error" {
+						data.ConstructorReturnsError[funcDecl.Name.Name] = true
+					}
+				}
+			}
+		}
 	}
+
+	data.PackageName = pkg.Name
+	data.ConstructorPrefix = "New"
+
+	generateConstructor("sample/address.go", data)
 }
 
 func extractTypeAndImportPath(s string) (string, string) {
@@ -183,7 +184,7 @@ func toPascalCase(s string) string {
 	return string(runes)
 }
 
-func generateConstructor(filename string, data TemplateData) {
+func generateConstructor(filename string, data *TemplateData) {
 	tmpl, err := template.New("constructor").Funcs(template.FuncMap{
 		"camelCase":  toCamelCase,
 		"pascalCase": toPascalCase,

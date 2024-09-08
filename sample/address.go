@@ -37,6 +37,10 @@ type Address struct {
 	TempTime   TempTime
 }
 
+type Address2 struct {
+	Number AddressNumber
+}
+
 func NewAddressNumber(number int) (AddressNumber, error) {
 	return AddressNumber(number), nil
 }
@@ -59,6 +63,10 @@ func NewAddressTemp2(temp2 sample2.Temp) Temp2 {
 
 func NewAddressTempTime(tempTime time.Time) TempTime {
 	return TempTime(tempTime)
+}
+
+func NewAddress2Number(number int) (AddressNumber, error) {
+	return NewAddressNumber(number)
 }
 
 func BuildAddressNumber(t *testing.T) AddressNumber {
