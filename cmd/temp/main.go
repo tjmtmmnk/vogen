@@ -36,6 +36,7 @@ type TemplateData struct {
 	Structs                  []*Struct
 	ImportPaths              []string
 	TypeNameToUnderlyingType map[string]string
+	ConstructorReturnsError  map[string]bool
 }
 
 var regex = regexp.MustCompile(`^(.+)/(\w+\.\w+)$`)
@@ -62,6 +63,7 @@ func main() {
 		data := &TemplateData{
 			Structs:                  make([]*Struct, 0),
 			TypeNameToUnderlyingType: make(map[string]string),
+			ConstructorReturnsError:  make(map[string]bool),
 		}
 
 		for _, syntax := range pkg.Syntax {
@@ -109,13 +111,24 @@ func main() {
 						}
 					}
 				}
+				if funcDecl, ok := decl.(*ast.FuncDecl); ok {
+					data.ConstructorReturnsError[funcDecl.Name.Name] = false
+
+					list := funcDecl.Type.Results.List
+					// (type, error)のみ対応
+					if funcDecl.Type.Results != nil && len(list) == 2 {
+						if ident, ok := list[1].Type.(*ast.Ident); ok && ident.Name == "error" {
+							data.ConstructorReturnsError[funcDecl.Name.Name] = true
+						}
+					}
+				}
 			}
 		}
 
 		dataList = append(dataList, data)
 		data.PackageName = pkg.Name
 		data.ConstructorPrefix = "New"
-		generateConstructor("sample/address.go", *data, map[string]bool{})
+		generateConstructor("sample/address.go", *data)
 	}
 }
 
@@ -170,15 +183,15 @@ func toPascalCase(s string) string {
 	return string(runes)
 }
 
-func generateConstructor(filename string, data TemplateData, constructorReturnsError map[string]bool) {
+func generateConstructor(filename string, data TemplateData) {
 	tmpl, err := template.New("constructor").Funcs(template.FuncMap{
-		"camelCase": toCamelCase,
+		"camelCase":  toCamelCase,
 		"pascalCase": toPascalCase,
 		"shouldReturnError": func() bool {
-			return len(constructorReturnsError) > 0
+			return len(data.ConstructorReturnsError) > 0
 		},
-		"constructorReturnsError": func(typ string) bool {
-			return constructorReturnsError[data.ConstructorPrefix+typ]
+		"constructorReturnsError": func(constructorName string) bool {
+			return data.ConstructorReturnsError[constructorName]
 		},
 		"isPointer": func(typ string) bool {
 			return strings.HasPrefix(typ, "*")
@@ -190,12 +203,9 @@ func generateConstructor(filename string, data TemplateData, constructorReturnsE
 			}
 			return underlying
 		},
-		"isDefinedType": func(typeName string) bool {
-			underlying, ok := data.TypeNameToUnderlyingType[typeName]
-			if !ok {
-				return false
-			}
-			return underlying != typeName
+		"hasConstructor": func(constructorName string) bool {
+			_, ok := data.ConstructorReturnsError[constructorName]
+			return ok
 		},
 		"uniqueImportPaths": func() []string {
 			seen := map[string]bool{}
@@ -220,18 +230,23 @@ import (
   {{$structName := .Name}}
   func {{$prefix}}{{$structName}}({{range $index, $field := .Fields}}{{if $index}}, {{end}}{{$field.Name | camelCase}} {{ getUnderlyingType $field.Type }}{{end}}) {{if shouldReturnError}}(*{{$structName}}, error){{else}}*{{$structName}}{{end}} {
    {{range $index, $field := .Fields}}
-     {{if constructorReturnsError .Type}}
-       tempVarByVogen{{.Name}}, err := {{$prefix | pascalCase}}{{$structName | pascalCase}}{{$field.Name | pascalCase}}({{.Name | camelCase}})
-       if err != nil {
-        return nil, err
-       }
-     {{else}}
-       tempVarByVogen{{.Name}} := {{$prefix | pascalCase}}{{$structName | pascalCase}}{{$field.Name | pascalCase}}({{.Name | camelCase}})
+     {{$constructorName := printf "%s%s%s" ($prefix | pascalCase) ($structName | pascalCase) ($field.Name | pascalCase)}}
+     {{if hasConstructor $constructorName}}
+       {{if constructorReturnsError $constructorName}}
+         tempVarByVogen{{.Name}}, err := {{$constructorName}}({{.Name | camelCase}})
+         if err != nil {
+          return nil, err
+         }
+       {{else}}
+         tempVarByVogen{{.Name}} := {{$constructorName}}({{.Name | camelCase}})
+       {{end}}
      {{end}}
   {{end}}
     return &{{$structName}}{
      {{range $index, $field := .Fields}}
-       {{.Name}}: {{if isDefinedType .Type}}tempVarByVogen{{.Name}}{{else}}{{.Name | camelCase}}{{end}},
+       {{$constructorName := printf "%s%s%s" ($prefix | pascalCase) ($structName | pascalCase) ($field.Name | pascalCase)}}
+       // {{$constructorName}}
+       {{.Name}}: {{if hasConstructor $constructorName}}tempVarByVogen{{.Name}}{{else}}{{.Name | camelCase}}{{end}},
      {{end}}
     }{{if shouldReturnError}}, nil{{end}}
   }
@@ -254,8 +269,8 @@ import (
 		log.Fatalf("failed to execute template: %v", err)
 	}
 
-	//runGoImports(outputFilename)
-	//runGoFmt(outputFilename)
+	runGoImports(outputFilename)
+	runGoFmt(outputFilename)
 
 	log.Printf("successfully in %s\n", outputFilename)
 }

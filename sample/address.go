@@ -42,24 +42,16 @@ func NewAddressNumber2(number int) (AddressNumber2, error) {
 	return AddressNumber2(number), nil
 }
 
-func NewAddressNumber2p(number *int) (AddressNumber2p, error) {
-	var n2p AddressNumber2p
-	if number != nil {
-		n, err := NewAddressNumber(*number)
-		if err != nil {
-			return nil, err
-		}
-		n2p = &n
-	}
-	return n2p, nil
-}
-
 func NewAddressCity(city string) (AddressCity, error) {
 	return AddressCity(city), nil
 }
 
 func NewAddressCountry(country string) (AddressCountry, error) {
 	return AddressCountry(country), nil
+}
+
+func NewAddressTemp2(temp2 sample2.Temp) Temp2 {
+	return Temp2(temp2)
 }
 
 func BuildAddressNumber(t *testing.T) AddressNumber {
