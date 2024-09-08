@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"go/ast"
 	"go/types"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"slices"
 	"strings"
 	"text/template"
 	"unicode"
@@ -42,6 +44,18 @@ type TemplateData struct {
 var regex = regexp.MustCompile(`^(.+)/(\w+\.\w+)$`)
 
 func main() {
+	filePath := flag.String("path", "", "Source file path")
+	structNames := flag.String("structs", "", "Comma-separated list of struct names to generate")
+	prefix := flag.String("prefix", "", "Prefix for constructor function")
+	//factory := flag.Bool("factory", false, "Generate factory functions")
+	flag.Parse()
+
+	if *filePath == "" || *structNames == "" || *prefix == "" {
+		log.Fatalf("Usage: vogen -path <FilePath> -structs <StructName1,StructName2,...> -prefix <Prefix>")
+	}
+
+	targetStructs := strings.Split(*structNames, ",")
+
 	ctx := context.Background()
 	wd, err := os.Getwd()
 	if err != nil {
@@ -52,7 +66,7 @@ func main() {
 		Mode:    packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo,
 		Dir:     wd,
 	}
-	pkgs, err := packages.Load(cfg, "./sample/address.go")
+	pkgs, err := packages.Load(cfg, *filePath)
 	if err != nil {
 		panic(err)
 	}
@@ -76,22 +90,27 @@ func main() {
 						switch t := typeSpec.Type.(type) {
 						case *ast.StructType:
 							structFields := make([]*StructField, len(t.Fields.List))
+							structName := typeSpec.Name.Name
+
+							if !slices.Contains(targetStructs, structName) {
+								continue
+							}
 
 							for i, field := range t.Fields.List {
 								if field.Names == nil || len(field.Names) == 0 {
 									panic("field.Names is nil or empty")
 								}
-								name := field.Names[0]
+								name := field.Names[0].Name
 								if ident, ok := field.Type.(*ast.Ident); ok {
 									structFields[i] = &StructField{
-										Name: name.Name,
+										Name: name,
 										Type: ident.Name,
 									}
 								} else if selector, ok := field.Type.(*ast.SelectorExpr); ok {
 									ty := pkg.TypesInfo.TypeOf(selector)
 									typeName, importPath := extractTypeAndImportPath(ty.String())
 									structFields[i] = &StructField{
-										Name: name.Name,
+										Name: name,
 										Type: typeName,
 									}
 									if importPath != "" {
@@ -100,7 +119,7 @@ func main() {
 								}
 							}
 							data.Structs = append(data.Structs, &Struct{
-								Name:   typeSpec.Name.Name,
+								Name:   structName,
 								Fields: structFields,
 							})
 						default:

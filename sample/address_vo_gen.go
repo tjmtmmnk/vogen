@@ -2,10 +2,12 @@
 package sample
 
 import (
+	"time"
+
 	"github.com/tjmtmmnk/vogen/sample2"
 )
 
-func NewAddress(number int, number2 int, number2p *AddressNumber, city string, country string, temp sample2.Temp, tempFunc func() int, tempSlice []int, tempSliceP []*int, tempMap map[string]int, temp2 sample2.Temp) (*Address, error) {
+func NewAddress(number int, number2 int, number2p *AddressNumber, city string, country string, temp sample2.Temp, tempFunc func() int, tempSlice []int, tempSliceP []*int, tempMap map[string]int, temp2 sample2.Temp, tempTime time.Time) (*Address, error) {
 
 	tempVarByVogenNumber, err := NewAddressNumber(number)
 	if err != nil {
@@ -29,39 +31,45 @@ func NewAddress(number int, number2 int, number2p *AddressNumber, city string, c
 
 	tempVarByVogenTemp2 := NewAddressTemp2(temp2)
 
+	tempVarByVogenTempTime := NewAddressTempTime(tempTime)
+
 	return &Address{
 
-		// NewAddressNumber
 		Number: tempVarByVogenNumber,
 
-		// NewAddressNumber2
 		Number2: tempVarByVogenNumber2,
 
-		// NewAddressNumber2p
 		Number2p: number2p,
 
-		// NewAddressCity
 		City: tempVarByVogenCity,
 
-		// NewAddressCountry
 		Country: tempVarByVogenCountry,
 
-		// NewAddressTemp
 		Temp: temp,
 
-		// NewAddressTempFunc
 		TempFunc: tempFunc,
 
-		// NewAddressTempSlice
 		TempSlice: tempSlice,
 
-		// NewAddressTempSliceP
 		TempSliceP: tempSliceP,
 
-		// NewAddressTempMap
 		TempMap: tempMap,
 
-		// NewAddressTemp2
 		Temp2: tempVarByVogenTemp2,
+
+		TempTime: tempVarByVogenTempTime,
+	}, nil
+}
+
+func NewAddress2(number int) (*Address2, error) {
+
+	tempVarByVogenNumber, err := NewAddress2Number(number)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Address2{
+
+		Number: tempVarByVogenNumber,
 	}, nil
 }
