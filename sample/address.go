@@ -2,6 +2,7 @@ package sample
 
 import (
 	"testing"
+	"time"
 
 	"github.com/tjmtmmnk/vogen/sample2"
 )
@@ -17,6 +18,7 @@ type (
 	TempSliceP      []*int
 	TempMap         map[string]int
 	Temp2           sample2.Temp
+	TempTime        time.Time
 )
 
 //go:generate go run github.com/tjmtmmnk/vogen -source $GOFILE -structs Address -prefix New -dir sample -factory true
@@ -32,6 +34,7 @@ type Address struct {
 	TempSliceP TempSliceP
 	TempMap    TempMap
 	Temp2      Temp2
+	TempTime   TempTime
 }
 
 func NewAddressNumber(number int) (AddressNumber, error) {
@@ -52,6 +55,10 @@ func NewAddressCountry(country string) (AddressCountry, error) {
 
 func NewAddressTemp2(temp2 sample2.Temp) Temp2 {
 	return Temp2(temp2)
+}
+
+func NewAddressTempTime(tempTime time.Time) TempTime {
+	return TempTime(tempTime)
 }
 
 func BuildAddressNumber(t *testing.T) AddressNumber {

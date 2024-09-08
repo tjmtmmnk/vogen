@@ -245,7 +245,6 @@ import (
     return &{{$structName}}{
      {{range $index, $field := .Fields}}
        {{$constructorName := printf "%s%s%s" ($prefix | pascalCase) ($structName | pascalCase) ($field.Name | pascalCase)}}
-       // {{$constructorName}}
        {{.Name}}: {{if hasConstructor $constructorName}}tempVarByVogen{{.Name}}{{else}}{{.Name | camelCase}}{{end}},
      {{end}}
     }{{if shouldReturnError}}, nil{{end}}
