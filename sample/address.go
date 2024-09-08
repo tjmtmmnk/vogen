@@ -1,6 +1,10 @@
 package sample
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/tjmtmmnk/vogen/sample2"
+)
 
 type (
 	AddressNumber   int
@@ -8,16 +12,26 @@ type (
 	AddressNumber2p *AddressNumber
 	AddressCity     string
 	AddressCountry  string
-	Temp            int
+	TempFunc        func() int
+	TempSlice       []int
+	TempSliceP      []*int
+	TempMap         map[string]int
+	Temp2           sample2.Temp
 )
 
 //go:generate go run github.com/tjmtmmnk/vogen -source $GOFILE -structs Address -prefix New -dir sample -factory true
 type Address struct {
-	Number   AddressNumber
-	Number2  AddressNumber2
-	Number2p AddressNumber2p
-	City     AddressCity
-	Country  AddressCountry
+	Number     AddressNumber
+	Number2    AddressNumber2
+	Number2p   AddressNumber2p
+	City       AddressCity
+	Country    AddressCountry
+	Temp       sample2.Temp
+	TempFunc   TempFunc
+	TempSlice  TempSlice
+	TempSliceP TempSliceP
+	TempMap    TempMap
+	Temp2      Temp2
 }
 
 func NewAddressNumber(number int) (AddressNumber, error) {
