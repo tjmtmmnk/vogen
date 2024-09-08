@@ -89,3 +89,38 @@ func BuildAddressCity(t *testing.T) AddressCity {
 func BuildAddressCountry(t *testing.T) AddressCountry {
 	return AddressCountry("country")
 }
+
+func BuildAddressTemp(t *testing.T) sample2.Temp {
+	return sample2.Temp(1)
+}
+
+func BuildAddressTempFunc(t *testing.T) TempFunc {
+	return func() int {
+		return 1
+	}
+}
+
+func BuildAddressTempSlice(t *testing.T) TempSlice {
+	return []int{1, 2, 3}
+}
+
+func BuildAddressTempSliceP(t *testing.T) TempSliceP {
+	temp := 1
+	return []*int{&temp}
+}
+
+func BuildAddressTempMap(t *testing.T) TempMap {
+	return map[string]int{"key": 1}
+}
+
+func BuildAddressTemp2(t *testing.T) Temp2 {
+	return Temp2(sample2.Temp(1))
+}
+
+func BuildAddressTempTime(t *testing.T) TempTime {
+	return TempTime(time.Now())
+}
+
+func BuildAddress2Number(t *testing.T) AddressNumber {
+	return BuildAddressNumber(t)
+}
