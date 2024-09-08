@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/types"
+	"maps"
 	"os"
 
 	"golang.org/x/tools/go/packages"
@@ -40,7 +41,7 @@ func main() {
 		panic(err)
 	}
 
-	var underlyingTypes []*underlyingType
+	typeNameToUnderlyingType := map[string]string{}
 	var structFields []*structField
 
 	for _, pkg := range pkgs {
@@ -71,33 +72,46 @@ func main() {
 									}
 								}
 							default:
-								underlyingTypes = append(underlyingTypes, &underlyingType{
-									Name: typeSpec.Name.Name,
-									Type: getUnderlyingType(pkg.TypesInfo, t),
-								})
+								typeNameToUnderlyingType[typeSpec.Name.Name] = getUnderlyingType(pkg.TypesInfo, t)
 							}
 						}
 					}
 				}
 			}
 		}
-		for _, v := range underlyingTypes {
-			debug(v)
+		for k, v := range maps.All(typeNameToUnderlyingType) {
+			fmt.Printf("%s: %s\n", k, v)
 		}
 		for _, v := range structFields {
-			debug(v)
+			var resolvedType string
+			if t, ok := typeNameToUnderlyingType[v.Type]; ok {
+				resolvedType = t
+			} else {
+				resolvedType = v.Type
+			}
+			fmt.Printf("%s: %s\n", v.Name, resolvedType)
 		}
 	}
 }
 
-func getUnderlyingType(info *types.Info, spec ast.Expr) string {
-	switch t := spec.(type) {
+func getUnderlyingType(info *types.Info, expr ast.Expr) string {
+	switch t := expr.(type) {
 	case *ast.Ident:
 		ty := info.TypeOf(t)
 		return ty.Underlying().String()
 	case *ast.SelectorExpr:
 		ty := info.TypeOf(t)
 		return ty.String() // time.Timeのような型はそのまま使う。Underlying()はtime.Timeの構造体の中身を指すため。
+	case *ast.StarExpr:
+		ty := info.TypeOf(t)
+		if pointer, ok := ty.(*types.Pointer); ok {
+			if named, ok := pointer.Elem().(*types.Named); ok {
+				return "*" + named.Obj().Name()
+			}
+		}
+		return ty.Underlying().String()
+	default:
+		ty := info.TypeOf(t)
+		return ty.Underlying().String()
 	}
-	return ""
 }
