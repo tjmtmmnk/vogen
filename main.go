@@ -294,6 +294,10 @@ import (
 	if err != nil {
 		log.Fatalf("failed to execute template: %v", err)
 	}
+	err = f.Sync()
+	if err != nil {
+		log.Fatalf("failed to sync: %v", err)
+	}
 
 	runGoImports(outputFilename)
 	runGoFmt(outputFilename)
