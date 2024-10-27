@@ -60,3 +60,16 @@ func NewAddress(number int, number2 int, number2p *AddressNumber, city string, c
 		TempTime: tempVarByVogenTempTime,
 	}, nil
 }
+
+func NewAddress2(number int) (*Address2, error) {
+
+	tempVarByVogenNumber, err := NewAddressNumber(number)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Address2{
+
+		Number: tempVarByVogenNumber,
+	}, nil
+}

@@ -21,7 +21,7 @@ type (
 	TempTime        time.Time
 )
 
-//go:generate go run github.com/tjmtmmnk/vogen -path $GOFILE -structs Address -prefix New -factory true
+//go:generate go run github.com/tjmtmmnk/vogen -path $GOFILE -structs Address,Address2 -prefix New -factory true
 type Address struct {
 	Number     AddressNumber
 	Number2    AddressNumber2
