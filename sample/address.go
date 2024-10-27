@@ -69,6 +69,14 @@ func NewAddress2Number(number int) (AddressNumber, error) {
 	return NewAddressNumber(number)
 }
 
+func NewTemp2(temp sample2.Temp) Temp2 {
+	return Temp2(temp)
+}
+
+func NewTempTime(tempTime time.Time) TempTime {
+	return TempTime(tempTime)
+}
+
 func BuildAddressNumber(t *testing.T) AddressNumber {
 	return AddressNumber(1)
 }
