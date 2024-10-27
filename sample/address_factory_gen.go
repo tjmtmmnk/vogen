@@ -110,19 +110,3 @@ func BuildAddress(t *testing.T, s *AddressSetter) *Address {
 
 	return obj
 }
-
-type Address2Setter struct {
-	Number *AddressNumber
-}
-
-func BuildAddress2(t *testing.T, s *Address2Setter) *Address2 {
-	obj := &Address2{}
-
-	if s.Number == nil {
-		obj.Number = BuildAddress2Number(t)
-	} else {
-		obj.Number = *s.Number
-	}
-
-	return obj
-}
